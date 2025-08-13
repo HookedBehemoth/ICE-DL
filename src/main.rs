@@ -76,7 +76,7 @@ const AUDIO_URL: &str = "https://iceportal.de/api1/rs/audiobooks/path";
 async fn main() {
     use reqwest::header;
     let mut headers = header::HeaderMap::new();
-    headers.insert("Cookie", header::HeaderValue::from_static("dbsession=10edb6d8.6077086c9abf5; s_fid=0EEE0C294B099A36-18947FC6829CC79E; gvo_v25=direct; s_cc=true; s_sq=%5B%5BB%5D%5D"));
+    headers.insert("Cookie", header::HeaderValue::from_static("dbsession=eefcd8be.63c3aa1585ff8"));
 
     let client = ClientBuilder::new()
         .user_agent("Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/117.0")
@@ -112,6 +112,7 @@ struct Joke {
 
 async fn dl_book(client: &reqwest::Client, book: &Book) {
     let mut chapters_owning = Vec::with_capacity(book.files.len());
+    let mut ext = "m4a";
     for chapter in book.files.iter() {
         let actual_url = format!("{AUDIO_URL}{}", &chapter.path);
         println!("resolved: {actual_url}");
@@ -121,6 +122,9 @@ async fn dl_book(client: &reqwest::Client, book: &Book) {
         }
         let actual = actual.json::<Joke>().await.unwrap();
         let actual = format!("{BASE_URL}{}", actual.path);
+        if actual.ends_with(".mp3") {
+            ext = "mp3";
+        }
         println!("resolved: {actual}");
         chapters_owning.push(ChapterOwning {
             title: CString::new(chapter.title.as_str()).unwrap(),
@@ -142,8 +146,8 @@ async fn dl_book(client: &reqwest::Client, book: &Book) {
         nb_chapters: chapters.len() as _,
         chapters: chapters.as_ptr() as _,
     };
-
-    let output = CString::new(format!("{}.m4a", book.title.to_str().unwrap())).unwrap();
+    
+    let output = CString::new(format!("{}.{}", book.title.to_str().unwrap(), ext)).unwrap();
     let ret = unsafe { download(&metadata as _, output.as_ptr()) };
     if ret != 0 {
         panic!("error while downloading {ret}");
